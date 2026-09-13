@@ -35,15 +35,18 @@ classdef testGeodesicConservation < matlab.unittest.TestCase
             in.r0        = 15;             % comfortably outside LSSO for every (a,iota) tested here
             in.ICs       = 'spherical';    % exact spherical-geodesic ICs -- see note in run_all_tests.m
             in.geodesics = 1;              % no radiation reaction
-            in.Tmax      = 500;            % a handful of orbital periods at r0=15
-            in.dt        = 5;
-            in.reltol    = 1e-12;
-            in.abstol    = 1e-12;
+            in.Tmax      = 2000;            % a handful of orbital periods at r0=15
+            in.dt        = 0.25;
+            in.reltol    = 1e-13;
+            in.abstol    = 1e-13;
             in.verbose   = 0;
 
             dyn = DB_class(in);
 
-            tol = 1e-8; % looser than reltol/abstol to allow for dense-output interpolation error
+            tol = 1e-11; % looser than reltol/abstol to allow for dense-output interpolation error
+                            % with reltol and abstol 1e-13 it passes up to 1e-11 at which point only
+                            % the highly spinning a = 0.998 configuration fails. The others
+                            % pass up to 1e-13
 
             r_spread = (max(dyn.r) - min(dyn.r)) / mean(dyn.r);
             testCase.verifyLessThan(r_spread, tol, ...
@@ -53,12 +56,13 @@ classdef testGeodesicConservation < matlab.unittest.TestCase
             testCase.verifyLessThan(H_spread, tol, ...
                 'Effective Hamiltonian (energy) is not conserved along the geodesic.');
 
-            C0 = dyn.C(1);
-            C_spread = (max(dyn.C) - min(dyn.C)) / max(abs(C0), 1e-12);
+            %C0 = dyn.C(1);
+            C0 = mean(dyn.C);
+            C_spread = (max(dyn.C) - min(dyn.C)) / max(abs(C0), 1e-13);
             testCase.verifyLessThan(C_spread, tol, ...
                 'Carter constant is not conserved along the geodesic.');
 
-            Lz_spread = (max(dyn.pphi) - min(dyn.pphi)) / max(abs(mean(dyn.pphi)), 1e-12);
+            Lz_spread = (max(dyn.pphi) - min(dyn.pphi)) / max(abs(mean(dyn.pphi)), 1e-13);
             testCase.verifyLessThan(Lz_spread, tol, ...
                 'Axial angular momentum p_phi is not conserved along the geodesic.');
         end

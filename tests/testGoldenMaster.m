@@ -34,12 +34,18 @@ classdef testGoldenMaster < matlab.unittest.TestCase
                 ref = testCase.golden.(key);
                 dyn = DB_class(ref.input);
 
-                testCase.verifyEqual(dyn.r,    ref.r,    'RelTol', 1e-8, [key ': r mismatch']);
-                testCase.verifyEqual(dyn.th,   ref.th,   'RelTol', 1e-8, [key ': th mismatch']);
-                testCase.verifyEqual(dyn.phi,  ref.phi,  'RelTol', 1e-8, [key ': phi mismatch']);
-                testCase.verifyEqual(dyn.Heff, ref.Heff, 'RelTol', 1e-8, [key ': Heff mismatch']);
-                testCase.verifyEqual(dyn.C,    ref.C,    'RelTol', 1e-8, [key ': C mismatch']);
-                testCase.verifyEqual(dyn.pphi, ref.pphi, 'RelTol', 1e-8, [key ': pphi mismatch']);
+                % Reruns the exact same deterministic computation, so this should
+                % reproduce bit-for-bit; RelTol only needs to absorb legitimate
+                % floating-point reordering from a behavior-preserving rewrite
+                % (e.g. the DB_metric_Kerr/DB_Hamiltonian_Kerr CSE rewrite), which
+                % sits far below the golden-master cases' own 1e-12 integrator
+                % tolerance -- not genuine physics drift.
+                testCase.verifyEqual(dyn.r,    ref.r,    'RelTol', 1e-11, [key ': r mismatch']);
+                testCase.verifyEqual(dyn.th,   ref.th,   'RelTol', 1e-11, [key ': th mismatch']);
+                testCase.verifyEqual(dyn.phi,  ref.phi,  'RelTol', 1e-11, [key ': phi mismatch']);
+                testCase.verifyEqual(dyn.Heff, ref.Heff, 'RelTol', 1e-11, [key ': Heff mismatch']);
+                testCase.verifyEqual(dyn.C,    ref.C,    'RelTol', 1e-11, [key ': C mismatch']);
+                testCase.verifyEqual(dyn.pphi, ref.pphi, 'RelTol', 1e-11, [key ': pphi mismatch']);
             end
         end
     end
