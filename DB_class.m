@@ -293,8 +293,8 @@ classdef DB_class < handle
             end
 
             % check that orbit starts outside of LSSO
-            if obj.r0 > DB_LSSO(obj.chi1(3),obj.iota)
-                disp('WARNING: initial distance r0 = %.3f is smaller than r_LSSO = %.3f. The orbit will likely be unstable',obj.r0,DB_LSSO(obj.chi1(3),obj.iota))
+            if obj.r0 < DB_LSSO(obj.chi1(3),obj.iota)
+                fprintf('WARNING: initial distance r0 = %.3f is smaller than r_LSSO = %.3f. The orbit will likely be unstable\n',obj.r0,DB_LSSO(obj.chi1(3),obj.iota))
             end
 
              % check radiation reaction flags
