@@ -1,0 +1,179 @@
+## parfile for the teukode
+# 2d inhomogeneous teukolsky equation for s=-2,+2 # 
+# possible backgr-coords: RT,HH 
+# possible tetrads: Kinnersley, Hawking-Hartle 
+# possible tetrad-coords: Kinn: BL,KI,RT,HH, Hawk: RT,HH 
+
+modules = kerrbckgrd teuk particle 
+
+####################################
+# kerrbckgrd 
+####################################
+kerr_mbh = 1.000000 
+kerr_abh = @kerr_abh@
+kerr_spinfield = @kerr_spinfield@ 
+kerr_mmode = @kerr_mmode@ 
+kerr_coords = HH 
+
+####################################
+# grid 
+####################################
+grid_nx = @grid_nx@
+grid_ny = @grid_ny@
+grid_gx = 3 
+grid_gy = 3 
+
+grid_specify = limits 
+grid_xmin = @grid_xmin@ 
+grid_xmax = 1.00000000000000000000000000000000e+01 
+grid_ymin = 0.000000 
+grid_ymax = Pi 
+grid_stagx = no 
+grid_stagy = yes 
+
+####################################
+# mpi
+####################################
+mpi_nbuffers = 2 
+mpi_xsize = @mpi_xsize@ 
+mpi_ysize = @mpi_ysize@
+mpi_cart_reorder = no 
+mpi_xperi = no 
+mpi_yperi = no 
+mpi_comm_active = evolve postevolve output 
+mpi_comm_var_evolve = all 
+mpi_comm_var_postevolve = rphi iphi 
+mpi_comm_var_output = rpsi ipsi 
+mpi_timer_on = no 
+
+#omp_threads = 1
+
+####################################
+# numanal 
+####################################
+fd_order = 6 
+fd_kodiss_use = no 
+fd_kodiss_order = 6 
+fd_kodiss_sigma = 0.070000 
+fd_extrap_order = 6 
+
+####################################
+# initial data 
+####################################
+initial_data = zero 
+teuk_id_lmode = 10 
+# --> only needed for the hom.TE 
+
+Gaussian_a = 1.000000e+00 
+Gaussian_b = 5.000000e+00 
+Gaussian_c = 5.800000e+00 
+# --> only needed for the hom.TE 
+
+####################################
+# teuk 
+####################################
+teuk_stencils = sided 
+teuk_cfl = cart
+
+teuk_src = pp 
+teuk_src_coors = HH 
+teuk_src_mpieffective = no 
+
+teuk_derivation_tetrad = Hawking
+teuk_extrafields_psi4 = yes 
+teuk_extrafields_dh = yes 
+teuk_extrafields_h = yes 
+teuk_extrafields_cumphi = no 
+teuk_extrafields_cumcumphi = no 
+teuk_extrafields_rexi = 3 @grid_nx+2@ 
+
+teuk_modes_nth = @grid_ny+1@
+teuk_modes_intrporder = 6 
+teuk_modes_lmin = 2 
+teuk_modes_lmax = 8 
+teuk_modes_vars = phi 
+teuk_modes_Yslm = yes 
+teuk_modes_Sslm = no 
+teuk_modes_rinterp = no 
+teuk_modes_rex = #10.000000 
+teuk_modes_rexi = 3 @grid_nx+2@ 
+teuk_modes_extra_psi4 = @lsum@
+teuk_modes_extra_dh = yes 
+teuk_modes_extra_h = @lsum@
+teuk_modes_extra_cumphi = no 
+teuk_modes_extra_cumcumphi = no 
+
+teuk_flux_td_lsum = @lsum@
+teuk_flux_td_Ylm = @lsum@
+teuk_flux_fd_lsum = no 
+teuk_flux_fd_Ylm = no 
+teuk_flux_fd_Slm = no 
+
+####################################
+# particle 
+####################################
+particle_mass = 1 
+particle_spin = 0.000000000000000000e+00
+
+particle_trajectory = fromfile 
+particle_trajectory_file = @particle_trajectory_file@
+particle_trajectory_fileformat = ascii
+particle_trajectory_intrporder = 6 
+particle_trajectory_output = no 
+particle_trajfromfile_skiptime = 0 
+
+#particle_trajectory_ciro_r = 10.000000 
+#particle_trajectory_ciro_th = Pi/2 
+# --> only needed for the cirroeq trajectories 
+
+particle_delta_modus_x = 0 
+particle_delta_modus_y = 0
+particle_delta_nsigmax = 4 
+particle_delta_nsigmay = 4 
+
+particle_srclmts_nsigmasx = 12 
+particle_srclmts_nsigmasy = 12 
+
+#particle_spin_CEOprescription  = MPDTUL_anal
+
+####################################
+# evolve 
+####################################
+evolve_cfl = @evolve_cfl@
+evolve_method = rk4ls 
+evolve_t0 = 0.000000 
+evolve_tmax = @evolve_tmax@
+
+####################################
+# output 
+####################################
+outdir = @outdir@
+
+output_0d = rphi iphi  
+output_0d_it = 20 
+# --> out_dt = 0.094731 
+output_0d_interp = no 
+output_0d_atx = @grid_xmin_.4f@ 10
+output_0d_aty = 1.5708 
+
+output_norm = none 
+output_norm_it = 20 
+
+output_1d = @out1d@ 
+output_1d_it = 20
+output_1d_interp = no 
+output_1d_atx = @grid_xmin_.4f@ 10 
+output_1d_aty = none
+output_1d_di = 20 
+output_1d_dj = 4 
+
+output_1d_useGL = no 
+output_1d_N_GL = #50 
+
+output_2d = none 
+output_2d_vtk = none
+output_2d_gnuplot = none
+output_2d_it = 20 
+output_2d_di = 20 
+output_2d_dj = 4 
+
