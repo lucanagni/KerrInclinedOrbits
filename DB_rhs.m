@@ -34,10 +34,7 @@ p    = [px;py;pz];
 chi1 = [chi1x;chi1y;chi1z];
 chi2 = [chi2x;chi2y;chi2z];
 
-[~,~,dHeff] = DB_Hamiltonian(obj,r,p,chi1,chi2);
-%if contains(obj.hamiltonian, 'kerr')
-%    dH = dHeff;
-%end
+[~,~,dHeff] = DB_Hamiltonian_Kerr(obj,r,p,chi1);
 
 if obj.geodesics
     F = [0;0;0];

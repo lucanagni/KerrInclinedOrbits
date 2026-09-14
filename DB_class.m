@@ -33,7 +33,6 @@ classdef DB_class < handle
         ICs          = 'post-spherical';
         flux_KOS     = 0; %DEBUG: KOS flux for comparison
         flux_nucorrections = 0; %EOB flux with corrections in nu
-        hamiltonian  = 'kerr'; % 'balmelli', 'kerr', 'kerr_eq', 'kerr_star'
         so_coupling  = 1; % bool. Turn off spin-orbit coupling in the Hamiltonian. Useful for debugging/checks
 
         %matlab stuff
@@ -227,15 +226,8 @@ classdef DB_class < handle
                 error('Invalid size for chi2!')
             end
 
-            % check Hamiltonian used
-            if ~any(ismember({'balmelli','kerr','kerr_eq','kerr_star'},obj.hamiltonian))
-                error('Unknown Hamiltonian: %s\n', obj.hamiltonian)
-            end
-
-            % if studying Kerr, check that ID are consistent
-            if any(ismember({'kerr','kerr_eq'},obj.hamiltonian))
-                 DB_testmass_checks(obj, 'Using Kerr, but ');
-            end
+            % check that ID are consistent
+            DB_testmass_checks(obj, 'Using Kerr, but ');
 
             % ------------------------------------------------------------
             % Resolve {th0, iota}. iota is the user-facing convention
@@ -324,87 +316,41 @@ classdef DB_class < handle
         end
 
         function obj = solve_ODEs(obj, r, p)
-            if strcmp(obj.hamiltonian, 'kerr_star')
-                [Tpre] = DB_Tmatrix(r,obj.chi1);
-                ps = Tpre*p;
-                y0(1)  = r(1);
-                y0(2)  = r(2);
-                y0(3)  = r(3);
-                y0(4)  = ps(1);
-                y0(5)  = ps(2);
-                y0(6)  = ps(3);
-                y0(7)  = obj.chi1(1);
-                y0(8)  = obj.chi1(2);
-                y0(9)  = obj.chi1(3);
-                y0(10) = obj.chi2(1);
-                y0(11) = obj.chi2(2);
-                y0(12) = obj.chi2(3);
+            y0(1)  = r(1);
+            y0(2)  = r(2);
+            y0(3)  = r(3);
+            y0(4)  = p(1);
+            y0(5)  = p(2);
+            y0(6)  = p(3);
+            y0(7)  = obj.chi1(1);
+            y0(8)  = obj.chi1(2);
+            y0(9)  = obj.chi1(3);
+            y0(10) = obj.chi2(1);
+            y0(11) = obj.chi2(2);
+            y0(12) = obj.chi2(3);
 
-                rend = 1+sqrt(1-obj.chi1(3)^2)+1e-4; % FIXME
+            rend = 1+sqrt(1-obj.chi1(3)^2)+1e-4; % FIXME
 
-                rhs     = @(t,y)  DB_rhs_star(obj, t, y);
+            rhs     = @(t,y)  DB_rhs(obj, t, y);
+            options = odeset('events',@(T,Y) DB_ode_stop(T,Y,rend), ...
+                            'RelTol', obj.reltol, 'AbsTol', obj.abstol);
+            [T,Y]   = ode113(rhs, obj.Tmin:obj.dt:obj.Tmax, y0, options);
 
-                options = odeset('events',@(T,Y) DB_ode_stop(T,Y,rend), ...
-                                'RelTol', obj.reltol, 'AbsTol', obj.abstol);
-                [T,Y]   = ode113(rhs, obj.Tmin:obj.dt:obj.Tmax, y0, options);
+            obj.x     = Y(:,1);
+            obj.y     = Y(:,2);
+            obj.z     = Y(:,3);
+            obj.px    = Y(:,4);
+            obj.py    = Y(:,5);
+            obj.pz    = Y(:,6);
+            obj.chi1x = Y(:,7);
+            obj.chi1y = Y(:,8);
+            obj.chi1z = Y(:,9);
+            obj.chi2x = Y(:,10);
+            obj.chi2y = Y(:,11);
+            obj.chi2z = Y(:,12);
+            obj.t = T;
 
-                obj.x     = Y(:,1);
-                obj.y     = Y(:,2);
-                obj.z     = Y(:,3);
-                obj.pxs   = Y(:,4);
-                obj.pys   = Y(:,5);
-                obj.pzs   = Y(:,6);
-                obj.chi1x = Y(:,7);
-                obj.chi1y = Y(:,8);
-                obj.chi1z = Y(:,9);
-                obj.chi2x = Y(:,10);
-                obj.chi2y = Y(:,11);
-                obj.chi2z = Y(:,12);
-                obj.t = T;
-
-                [obj.px,obj.py,obj.pz] = DB_pstar_to_p(obj.x,obj.y,obj.z,obj.pxs,obj.pys,obj.pzs,obj.chi1);
-                for i=1:length(obj.t)
-                    [obj.r(i,:),obj.phi(i,:),obj.th(i,:),obj.pr(i,:),obj.pphi(i,:),obj.pth(i,:)] = DB_coords_cart2spherical(obj.x(i),obj.y(i),obj.z(i),obj.px(i),obj.py(i),obj.pz(i));
-                    [~,~,~,obj.prs(i,:)] =  DB_coords_cart2spherical(obj.x(i),obj.y(i),obj.z(i),obj.pxs(i),obj.pys(i),obj.pzs(i));
-                end
-            else
-                y0(1)  = r(1);
-                y0(2)  = r(2);
-                y0(3)  = r(3);
-                y0(4)  = p(1);
-                y0(5)  = p(2);
-                y0(6)  = p(3);
-                y0(7)  = obj.chi1(1);
-                y0(8)  = obj.chi1(2);
-                y0(9)  = obj.chi1(3);
-                y0(10) = obj.chi2(1);
-                y0(11) = obj.chi2(2);
-                y0(12) = obj.chi2(3);
-
-                rend = 1+sqrt(1-obj.chi1(3)^2)+1e-4; % FIXME
-
-                rhs     = @(t,y)  DB_rhs(obj, t, y);
-                options = odeset('events',@(T,Y) DB_ode_stop(T,Y,rend), ...
-                                'RelTol', obj.reltol, 'AbsTol', obj.abstol);
-                [T,Y]   = ode113(rhs, obj.Tmin:obj.dt:obj.Tmax, y0, options);
-
-                obj.x     = Y(:,1);
-                obj.y     = Y(:,2);
-                obj.z     = Y(:,3);
-                obj.px    = Y(:,4);
-                obj.py    = Y(:,5);
-                obj.pz    = Y(:,6);
-                obj.chi1x = Y(:,7);
-                obj.chi1y = Y(:,8);
-                obj.chi1z = Y(:,9);
-                obj.chi2x = Y(:,10);
-                obj.chi2y = Y(:,11);
-                obj.chi2z = Y(:,12);
-                obj.t = T;
-
-                [obj.r,obj.phi,obj.th,obj.pr,obj.pphi,obj.pth] = DB_coords_cart2spherical(obj.x,obj.y,obj.z,obj.px,obj.py,obj.pz);
-
-            end
+            [obj.r,obj.phi,obj.th,obj.pr,obj.pphi,obj.pth] = DB_coords_cart2spherical(obj.x,obj.y,obj.z,obj.px,obj.py,obj.pz);
         end
 
         function obj = print_with_prec(obj, name, var, prec)
@@ -453,8 +399,7 @@ classdef DB_class < handle
                 obj.L(i,:)  = cross(R,p);
                 obj.Lnorm(i) = norm(obj.L(i,:));
                 chi1_t = [obj.chi1x(i), obj.chi1y(i), obj.chi1z(i)];
-                chi2_t = [obj.chi2x(i), obj.chi2y(i), obj.chi2z(i)];
-                [Heff_i,Horb_i,dHeff,dHorb,dHso] = DB_Hamiltonian(obj,R,p,chi1_t,chi2_t);
+                [Heff_i,Horb_i,dHeff,dHorb,dHso] = DB_Hamiltonian_Kerr(obj,R,p,chi1_t);
                 obj.Heff(i) = Heff_i;
                 obj.Horb(i) = Horb_i;
 
@@ -465,7 +410,7 @@ classdef DB_class < handle
                 obj.dHsodp(i,:) = dHso.dp;
                 obj.dHsodx(i,:) = dHso.dx;
 
-                [~,~,~,dHschw] = DB_Hamiltonian(obj,R,p,0*chi1_t,chi2_t);
+                [~,~,~,dHschw] = DB_Hamiltonian_Kerr(obj,R,p,0*chi1_t);
                 obj.dHschwdx(i,:) = dHschw.dx;
                 obj.dHschwdp(i,:) = dHschw.dp;
 

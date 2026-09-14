@@ -35,7 +35,7 @@ for i=1:length(r)
     x0 = [r(i).*sin(th0).*cos(phi0);0;r(i).*cos(th0)];
     p0 = [0;py0(i);0];
 
-    [~,~,dHeff] = DB_Hamiltonian(obj,x0,p0,chi1,chi2);
+    [~,~,dHeff] = DB_Hamiltonian_Kerr(obj,x0,p0,chi1);
 
     F = DB_flux(x0,p0,dHeff.dp,q,chi1,chi2);
     Fy(i) = F(2);
@@ -43,7 +43,7 @@ end
 
 dpphi_dr = DB_D1(r.*py0,r,4);
 
-pr_ic = fzero(@(pr) first_PA(obj,r(51),py0(51),chi1*0,chi2,pr,dpphi_dr(51),Fy(51)),-1e-4);
+pr_ic = fzero(@(pr) first_PA(obj,r(51),py0(51),chi1*0,pr,dpphi_dr(51),Fy(51)),-1e-4);
 
 px_ic = pr_ic.*sin(th0).*cos(phi0);
 py_ic = py0(51);
@@ -71,7 +71,7 @@ R = [x,y,z];
 P = [0;py;0];
 
 obj = obj;                 %DEBUG
-[~,~,dHeff] = DB_Hamiltonian(obj,R,P,obj.chi1,obj.chi2);
+[~,~,dHeff] = DB_Hamiltonian_Kerr(obj,R,P,obj.chi1);
 
 sth = sin(th0);
 cth = cos(th0);
@@ -81,14 +81,13 @@ dHeff_dr = pr_flag.*dHeff.dx(1,:).*sth + dHeff.dx(3,:).*cth - pr_flag.*dHeff.dp(
 
 return
 
-function first_PA = first_PA(obj,x,py,chi1,chi2,px,dpphi_dr,Fy)
+function first_PA = first_PA(obj,x,py,chi1,px,dpphi_dr,Fy)
 
     r = [x;0;0];
     p = [px;py;0];
 
     obj = obj;                 %DEBUG
-    %obj.hamiltonian = 'kerr';   %DEBUG for star coordinates
-    [~,~,dHeff] = DB_Hamiltonian(obj,r,p,chi1,chi2);
+    [~,~,dHeff] = DB_Hamiltonian_Kerr(obj,r,p,chi1);
 
     dHeffdpr  = dHeff.dp(1,:);
 

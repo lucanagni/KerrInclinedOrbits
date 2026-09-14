@@ -33,16 +33,12 @@ phi = obj.phi0;
 R = [x,y,z];
 P = [0;py;0];
 
-[~,~,dHeff] = DB_Hamiltonian(obj,R,P,obj.chi1,obj.chi2);
+[~,~,dHeff] = DB_Hamiltonian_Kerr(obj,R,P,obj.chi1);
 
 sth = sin(th);
 cth = cos(th);
 r2 = r.^2;
 
-if strcmp(obj.hamiltonian,'kerr_star')
-    dHeff_dr = dHeff.dx(1,:).*sth + dHeff.dx(3,:).*cth - dHeff.dps(2,:).*pphi./(r2.*sth);
-else
-    dHeff_dr = pr_flag.*dHeff.dx(1,:).*sth + dHeff.dx(3,:).*cth - pr_flag.*dHeff.dp(2,:).*pphi./(r2.*sth);
-end
+dHeff_dr = pr_flag.*dHeff.dx(1,:).*sth + dHeff.dx(3,:).*cth - pr_flag.*dHeff.dp(2,:).*pphi./(r2.*sth);
 
 return

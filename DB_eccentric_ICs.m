@@ -1,8 +1,6 @@
 function [r,p] = DB_eccentric_ICs(obj)
 
-if ~any(ismember({'kerr','kerr_eq'},obj.hamiltonian))
-    error('Eccentric ICs only works for Kerr')
-elseif abs(obj.chi1(1))>1e-10 || abs(obj.chi1(2))>1e-10
+if abs(obj.chi1(1))>1e-10 || abs(obj.chi1(2))>1e-10
     error('Kerr spin not aligned with z-axis!')
 elseif norm(obj.chi2)>1e-10
     error('Spinning particle!')

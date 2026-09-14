@@ -12,7 +12,7 @@ function [F,dEdt] = DB_flux2(x,p,dHdp,q,chi1,chi2)
 % Useful variables
 nu         = DB_nuX1X2(q);
 eulergamma = 0.57721566490153286061;
-  
+
 [r,phi,theta] = DB_coords_cart2spherical(x(1),x(2),x(3),p(1),p(2),p(3));
 
 %vr    = dHdp(1,:).*sin(theta).*cos(phi)+ dHdp(2,:).*sin(theta).*sin(phi) + dHdp(3,:).*cos(theta);
@@ -31,7 +31,7 @@ L = cross(x,p);
 l = L./sqrt(dot(L,L)); %3x1 column vector
 
 % Newtonian flux
-dEdtN = -32./5.*nu.*Omg.^(10./3); %!!!!! NU SHOULD BE SQUARED !!!!!
+dEdtN = -32./5.*nu.*Omg.^(10./3);
 
 f2    = -1247./336;
 f3    = 4.*pi;
