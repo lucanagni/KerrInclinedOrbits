@@ -20,20 +20,10 @@ if nu>0.01
     error('Symmetric mass ratio too high for kerr dynamics: nu=%.5f\n', nu)
 end
 
-% Identify Kerr spin, check no-spin for particle
-if q>=1
-    spin_kerr     = obj.chi1;
-    spin_particle = obj.chi2;
-else
-    spin_kerr     = obj.chi2;
-    spin_particle = obj.chi1;
-end
+spin_kerr = obj.chi1;
 
 if abs(spin_kerr(1))>1e-15 || abs(spin_kerr(2))>1e-15
     error('%sx and y component of Kerr spin are not zero!', msg)
-end
-if any(norm(spin_particle)>1e-15)
-    error('%sthe particle has spin!', msg)
 end
 
 a = spin_kerr(3);

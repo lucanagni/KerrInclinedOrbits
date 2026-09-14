@@ -20,8 +20,7 @@ classdef DB_class < handle
         q      = 1e3;       % Use q>=1
         nu     = -1;        % If not given in input, updated from q.
                             % If given in input, update q accordingly.
-        chi1   = [0;0;0.2]; % Kerr BH  in the test-mass limit (if q>=1). MUST BE ALIGNED WITH z AXIS
-        chi2   = [0;0;0];   % particle in the test-mass limit (if q>=1). NOT IMPLEMENTED
+        chi1   = [0;0;0.2]; % Kerr BH spin in the test-mass limit (if q>=1). MUST BE ALIGNED WITH z AXIS. Fixed parameter, not evolved.
 
         DBvKOS = 0; % DEBUG: used to compare some stuff with KOS
 
@@ -65,12 +64,6 @@ classdef DB_class < handle
         pxs
         pys
         pzs
-        chi1x
-        chi1y
-        chi1z
-        chi2x
-        chi2y
-        chi2z
 
         r
         th
@@ -156,8 +149,8 @@ classdef DB_class < handle
                 fprintf('%s\nInitial data\n%s\n', obj.dashes, obj.dashes)
                 prec = 8;
                 [~, X1, X2] = DB_nuX1X2(obj.q); % FIXME: we might get rid of DB_nuX1X2
-                names  = {'q','nu','X1','X2','chi1','chi2','r','p'};
-                values = {obj.q, obj.nu, X1, X2, obj.chi1, obj.chi2, r, p};
+                names  = {'q','nu','X1','X2','chi1','r','p'};
+                values = {obj.q, obj.nu, X1, X2, obj.chi1, r, p};
                 for i = 1:numel(names)
                     obj.print_with_prec(names{i}, values{i}, prec);
                 end
@@ -205,8 +198,8 @@ classdef DB_class < handle
                 error('Specify only one of th0 or iota, not both -- one determines the other.')
             end
 
-            if obj.q<1 && obj.verbose
-                disp('Provided q<1! Be careful with test-mass limit (m1 is particle, m2 is Kerr)')
+            if obj.q<1
+                error('Provided q<1! Use q>1 for test mass limit (q=m1/m2)')
             end
 
             nu_chk = obj.q/(1+obj.q)^2;
@@ -214,16 +207,11 @@ classdef DB_class < handle
                 error('Inconsistency between nu and q!')
             end
 
-            % check that spins are (3,1) arrays
+            % check that spin is a (3,1) array
             if all(size(obj.chi1)==[1,3])
                 obj.chi1 = transpose(obj.chi1);
             elseif ~all(size(obj.chi1)==[3,1])
                 error('Invalid size for chi1!')
-            end
-            if all(size(obj.chi2)==[1,3])
-                obj.chi2 = transpose(obj.chi2);
-            elseif ~all(size(obj.chi2)==[3,1])
-                error('Invalid size for chi2!')
             end
 
             % check that ID are consistent
@@ -322,12 +310,6 @@ classdef DB_class < handle
             y0(4)  = p(1);
             y0(5)  = p(2);
             y0(6)  = p(3);
-            y0(7)  = obj.chi1(1);
-            y0(8)  = obj.chi1(2);
-            y0(9)  = obj.chi1(3);
-            y0(10) = obj.chi2(1);
-            y0(11) = obj.chi2(2);
-            y0(12) = obj.chi2(3);
 
             rend = 1+sqrt(1-obj.chi1(3)^2)+1e-4; % FIXME
 
@@ -342,12 +324,6 @@ classdef DB_class < handle
             obj.px    = Y(:,4);
             obj.py    = Y(:,5);
             obj.pz    = Y(:,6);
-            obj.chi1x = Y(:,7);
-            obj.chi1y = Y(:,8);
-            obj.chi1z = Y(:,9);
-            obj.chi2x = Y(:,10);
-            obj.chi2y = Y(:,11);
-            obj.chi2z = Y(:,12);
             obj.t = T;
 
             [obj.r,obj.phi,obj.th,obj.pr,obj.pphi,obj.pth] = DB_coords_cart2spherical(obj.x,obj.y,obj.z,obj.px,obj.py,obj.pz);
@@ -398,8 +374,7 @@ classdef DB_class < handle
                 p      = [obj.px(i);obj.py(i);obj.pz(i)];
                 obj.L(i,:)  = cross(R,p);
                 obj.Lnorm(i) = norm(obj.L(i,:));
-                chi1_t = [obj.chi1x(i), obj.chi1y(i), obj.chi1z(i)];
-                [Heff_i,Horb_i,dHeff,dHorb,dHso] = DB_Hamiltonian_Kerr(obj,R,p,chi1_t);
+                [Heff_i,Horb_i,dHeff,dHorb,dHso] = DB_Hamiltonian_Kerr(obj,R,p,obj.chi1);
                 obj.Heff(i) = Heff_i;
                 obj.Horb(i) = Horb_i;
 
@@ -410,12 +385,12 @@ classdef DB_class < handle
                 obj.dHsodp(i,:) = dHso.dp;
                 obj.dHsodx(i,:) = dHso.dx;
 
-                [~,~,~,dHschw] = DB_Hamiltonian_Kerr(obj,R,p,0*chi1_t);
+                [~,~,~,dHschw] = DB_Hamiltonian_Kerr(obj,R,p,0*obj.chi1);
                 obj.dHschwdx(i,:) = dHschw.dx;
                 obj.dHschwdp(i,:) = dHschw.dp;
 
                 if obj.geodesics==0
-                    obj.F(i,:) = DB_flux2(R,p,dHeff.dp,obj.q,obj.chi1,obj.chi2);
+                    obj.F(i,:) = DB_flux2(R,p,dHeff.dp,obj.q,obj.chi1);
                 end
             end
             if obj.verbose

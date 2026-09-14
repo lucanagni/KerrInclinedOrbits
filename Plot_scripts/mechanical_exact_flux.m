@@ -22,9 +22,9 @@ function mechanical_exact_flux(s,which)
         P = [dyn.px(i); dyn.py(i); dyn.pz(i)];
         dHdp = dyn.dHdp(i,:)';
         if which==1
-            [f,dEdt_mech(i)] = DB_flux(X,P,dHdp,dyn.q,dyn.chi1,dyn.chi2);
+            [f,dEdt_mech(i)] = DB_flux(X,P,dHdp,dyn.q,dyn.chi1);
         elseif which==2
-            [f,dEdt_mech(i)] = DB_flux2(X,P,dHdp,dyn.q,dyn.chi1,dyn.chi2);
+            [f,dEdt_mech(i)] = DB_flux2(X,P,dHdp,dyn.q,dyn.chi1);
         else
             error('choose RR either 1 or 2')
         end

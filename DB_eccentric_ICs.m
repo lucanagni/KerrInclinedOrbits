@@ -1,11 +1,5 @@
 function [r,p] = DB_eccentric_ICs(obj)
 
-if abs(obj.chi1(1))>1e-10 || abs(obj.chi1(2))>1e-10
-    error('Kerr spin not aligned with z-axis!')
-elseif norm(obj.chi2)>1e-10
-    error('Spinning particle!')
-end
-
 a   = obj.chi1(3);
 e0  = obj.e0;
 sr0 = obj.sr0;

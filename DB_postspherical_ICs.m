@@ -10,7 +10,6 @@ function P_ic = DB_postspherical_ICs(obj)
 
 q = obj.q;
 chi1 = obj.chi1;
-chi2 = obj.chi2;
 r0 = obj.r0;
 th0 = obj.th0;
 phi0 = obj.phi0;
@@ -37,7 +36,7 @@ for i=1:length(r)
 
     [~,~,dHeff] = DB_Hamiltonian_Kerr(obj,x0,p0,chi1);
 
-    F = DB_flux(x0,p0,dHeff.dp,q,chi1,chi2);
+    F = DB_flux(x0,p0,dHeff.dp,q,chi1);
     Fy(i) = F(2);
 end
 

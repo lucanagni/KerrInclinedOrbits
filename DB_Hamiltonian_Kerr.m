@@ -151,11 +151,6 @@ else
     dHeff.dp = dHorb.dp;
 end
 
-% do not evolve spin
-dHeff.dchi1 = 0*dHeff.dx;
-dHeff.dchi2 = dHeff.dchi1;
-
-
 %{
 dH.H    = H;
 dH.Heff = Heff;

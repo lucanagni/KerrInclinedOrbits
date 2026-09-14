@@ -1,4 +1,4 @@
-function [F,dEdt] = DB_flux2(x,p,dHdp,q,chi1,chi2)
+function [F,dEdt] = DB_flux2(x,p,dHdp,q,chi1)
 
 %==========================================================================
 % Precessing flux
@@ -46,7 +46,6 @@ f3so  = -11./4.*dot(l,chi1);
 %%%% FIXME
 %dEdt = dEdtN;
 dEdt = dEdtN.*(DB_pade(3,4,f2,f3,f4,f5,f6,fl6,f7,0,0,v_omg)+f3so.*v_omg.^3);
-%a = sqrt(dot(chi2,chi2));
 
 Fspin = 61.*dot(p,chi1);
 % Total flux

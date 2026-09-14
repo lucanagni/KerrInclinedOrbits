@@ -1,4 +1,4 @@
-function [F,dEdt] = DB_flux(x,p,dHdp,q,chi1,chi2)
+function [F,dEdt] = DB_flux(x,p,dHdp,q,chi1)
 
 %==========================================================================
 % Precessing flux
@@ -42,20 +42,16 @@ f6    = 6643739519./69854400 + 16./3.*pi.^2 - 1702./105.*eulergamma...
 fl6   = -1712./105;
 f7    = -(16285./504 - 214745./1728.*nu - 193385./3024.*nu.^2).*pi;
 
-f3so  = -0.25.*(11.*X1 + 5.*X2).*X1.*dot(l,chi1)...
-    -0.25.*(11.*X2 + 5.*X1).*X2.*dot(l,chi2);
-f4ss  = nu./48.*(289.*dot(l,chi1).*dot(l,chi2) - 103.*dot(chi1,chi2));
+f3so  = -0.25.*(11.*X1 + 5.*X2).*X1.*dot(l,chi1);
 
-
-dEdt  = dEdtN.*(1 + f2.*v_omg.^2 + (f3 + f3so).*v_omg.^3 + (f4 + f4ss).*v_omg.^4 ...
+dEdt  = dEdtN.*(1 + f2.*v_omg.^2 + (f3 + f3so).*v_omg.^3 + f4.*v_omg.^4 ...
     + f5.*v_omg.^5 + (f6 + fl6.*log(4.*v_omg)).*v_omg.^6 + f7.*v_omg.^7);
 
 %%%% FIXME
 %dEdt = dEdtN;
-dEdt = dEdtN.*(DB_pade(3,4,f2,f3,f4,f5,f6,fl6,f7,0,0,v_omg)+f3so.*v_omg.^3+f4ss.*v_omg.^4);
-%a = sqrt(dot(chi2,chi2));
+dEdt = dEdtN.*(DB_pade(3,4,f2,f3,f4,f5,f6,fl6,f7,0,0,v_omg)+f3so.*v_omg.^3);
 
-Fspin = (61.*X1 + 48.*X2).*X1.*dot(p,chi1) + (61.*X2 + 48.*X1).*X2.*dot(p,chi2);
+Fspin = (61.*X1 + 48.*X2).*X1.*dot(p,chi1);
 
 % Total flux
 F     = 1./(omega.*norm(L)).*dEdt.*p...
