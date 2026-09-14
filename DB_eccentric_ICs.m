@@ -4,8 +4,6 @@ if abs(obj.chi1(1))>1e-10 || abs(obj.chi1(2))>1e-10
     error('Kerr spin not aligned with z-axis!')
 elseif norm(obj.chi2)>1e-10
     error('Spinning particle!')
-elseif abs(obj.th0-pi/2)>1e-12
-    error('Dynamics needs to start in the equatorial plane for eccentric ICs!')
 end
 
 a   = obj.chi1(3);
@@ -13,10 +11,10 @@ e0  = obj.e0;
 sr0 = obj.sr0;
 anomaly0 = obj.anomaly0;
 
-[r0, ph0, ~, pr0, pph0] = Polar_EccentricIn(a, e0, sr0, anomaly0);
+[r0_eq, ph0_eq, ~, pr0_eq, pph0_eq] = Polar_EccentricIn(a, e0, sr0, anomaly0);
 
-pth0 = obj.pth0_ecc_ICs;
-[x,y,z,px,py,pz] = DB_coords_spherical2cart(r0,ph0,pi/2,pr0,pph0,pth0);
+th0 = obj.th0;
+[x,y,z,px,py,pz] = DB_coords_spherical2cart(r0_eq,ph0_eq,th0,pr0_eq,pph0_eq,0);
 
 r = [ x; y; z];
 p = [px;py;pz]; %0.235+px for the dyn Simone is running on cluster
@@ -46,9 +44,9 @@ B12 = B1 + B2;
 % compute constants of motion
 pph2 = (A12.*dG.^2 - dA.*dB + dG.*sqrt(4*A1.*A2.*dG.^2 + 2.*dA.*(B12.*dA - A12.*dB)))./(dB.^2 - 2*B12.*dG.^2 + dG.^4);
 pph0 = sqrt(pph2);
-E0   = sqrt(A1.*(1 + pph2./rc1.^2)) + G1.*pph0; 
+E0   = sqrt(A1.*(1 + pph2./rc1.^2)) + G1.*pph0;
 
-% get actual initial radius based on mean anomaly 
+% get actual initial radius based on mean anomaly
 r0 = sr0/(1-e0*cos(anomaly0));
 [A0, ~, B0, rc0] = kerr_metric_equatorial(r0,a);
 G0 = 2./r0./rc0.^2*a;
