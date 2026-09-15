@@ -42,7 +42,7 @@ P = [px py pz];
 L = length(obj.t);
 F = zeros(L,3);
 for i = 1:L
-    F(i,:) = DB_flux2(X(i,:),P(i,:),dHdp(i,:),q,obj.chi1);
+    F(i,:) = DB_flux2(X(i,:).',P(i,:).',dHdp(i,:).',q,obj.chi1).';
 end
 Fx = F(:,1);
 Fy = F(:,2);

@@ -30,7 +30,7 @@ phi = obj.phi0;
 [x,y,z] = DB_coords_spherical2cart(r,phi,th,0,0,0);
 [~,~,~,~,pphi] = DB_coords_cart2spherical(x,y,z,0,py,0);
 
-R = [x,y,z];
+R = [x;y;z];
 P = [0;py;0];
 
 [~,~,dHeff] = DB_Hamiltonian_Kerr(obj,R,P,obj.chi1);

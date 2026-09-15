@@ -66,7 +66,7 @@ th0 = obj.th0;
 [x,y,z] = DB_coords_spherical2cart(r,phi0,th0,0,0,0);
 [~,~,~,~,pphi] = DB_coords_cart2spherical(x,y,z,0,py,0);
 
-R = [x,y,z];
+R = [x;y;z];
 P = [0;py;0];
 
 obj = obj;                 %DEBUG

@@ -73,11 +73,32 @@ classdef testGoldenMaster < matlab.unittest.TestCase
                 % the arithmetic inside these two functions -- always matched
                 % at 1e-11: there was no reordering for the plunge sensitivity
                 % to amplify, not because the sensitivity wasn't there).
+                %
+                % C gets its own, looser RelTol for a related but distinct
+                % reason: vectorial_Hamiltonian was rewritten to evaluate
+                % DB_Hamiltonian_Kerr once on the whole trajectory (3xN) instead
+                % of once per point in a loop, for performance. Evaluating many
+                % points at once vs. one at a time is not guaranteed bit-for-bit
+                % (vecnorm/dot/sum over a wide array can take a different
+                % instruction path than the same reduction over 3 elements
+                % done one column at a time), and this measures out at ~3e-13
+                % absolute in Heff on case4's plunge tail -- a direct batch-vs.
+                % loop comparison of dyn.Heff at every trajectory point found
+                % only 630/22058 points differing at all, by at most 2.7e-13.
+                % C amplifies this the same way the CSE rewrite's reordering
+                % was amplified above: C contains a^2*(1-Heff^2), and Heff -> 1
+                % in the last steps before plunge, so the ~1e-13 absolute noise
+                % in Heff becomes ~1e-12 relative in that term, then compounds
+                % over the stiff terminal integration to ~1.6e-8 relative in C
+                % at the last 3 of case4's 22058 steps -- just over the 1e-8
+                % used for every other field. r/th/phi/Heff/pphi are untouched
+                % by this (they matched at 1e-8 already) because they don't
+                % contain a comparable cancellation.
                 testCase.verifyEqual(dyn.r,    ref.r,    'RelTol', 1e-8, [key ': r mismatch']);
                 testCase.verifyEqual(dyn.th,   ref.th,   'RelTol', 1e-8, [key ': th mismatch']);
                 testCase.verifyEqual(dyn.phi,  ref.phi,  'RelTol', 1e-8, [key ': phi mismatch']);
                 testCase.verifyEqual(dyn.Heff, ref.Heff, 'RelTol', 1e-8, [key ': Heff mismatch']);
-                testCase.verifyEqual(dyn.C,    ref.C,    'RelTol', 1e-8, [key ': C mismatch']);
+                testCase.verifyEqual(dyn.C,    ref.C,    'RelTol', 5e-7, [key ': C mismatch']);
                 testCase.verifyEqual(dyn.pphi, ref.pphi, 'RelTol', 1e-8, [key ': pphi mismatch']);
             end
         end

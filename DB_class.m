@@ -350,49 +350,47 @@ classdef DB_class < handle
         end
 
         function obj = vectorial_Hamiltonian(obj)
-            my_zeros = zeros(length(obj.x),1);
-            obj.L = zeros(length(obj.x),3);
+            % F is only filled in below when radiation reaction is on
+            % (obj.geodesics==0); for geodesic motion it stays zero.
             obj.F = zeros(length(obj.x),3);
-            obj.Lnorm = my_zeros;
-            obj.Heff = my_zeros;
-            obj.Horb = my_zeros;
-            obj.dHdp = zeros(length(obj.x),3);
-            obj.dHdx = zeros(length(obj.x),3);
-            obj.dHorbdp = zeros(length(obj.x),3);
-            obj.dHorbdx = zeros(length(obj.x),3);
-            obj.dHsodp = zeros(length(obj.x),3);
-            obj.dHsodx = zeros(length(obj.x),3);
-            obj.dHschwdp = zeros(length(obj.x),3);
-            obj.dHschwdx = zeros(length(obj.x),3);
 
             if obj.verbose
                 fprintf('%s\nMemorizing Dynamics...\n%s\n', obj.dashes, obj.dashes)
             end
             write_start = tic;
-            for i=1:length(obj.t)
-                R      = [obj.x(i); obj.y(i); obj.z(i)];
-                p      = [obj.px(i);obj.py(i);obj.pz(i)];
-                obj.L(i,:)  = cross(R,p);
-                obj.Lnorm(i) = norm(obj.L(i,:));
-                [Heff_i,Horb_i,dHeff,dHorb,dHso] = DB_Hamiltonian_Kerr(obj,R,p,obj.chi1);
-                obj.Heff(i) = Heff_i;
-                obj.Horb(i) = Horb_i;
 
-                obj.dHdp(i,:) = dHeff.dp;
-                obj.dHdx(i,:) = dHeff.dx;
-                obj.dHorbdp(i,:) = dHorb.dp;
-                obj.dHorbdx(i,:) = dHorb.dx;
-                obj.dHsodp(i,:) = dHso.dp;
-                obj.dHsodx(i,:) = dHso.dx;
+            % Evaluate the whole trajectory at once (3xN) instead of
+            % looping point-by-point: DB_metric_Kerr/DB_Hamiltonian_Kerr/
+            % DB_flux2 are elementwise in their inputs, so a single
+            % vectorized call replaces what used to be up to millions of
+            % individual calls (each carrying its own function-call
+            % overhead) -- this is what used to make memorization so slow.
+            R = [obj.x.'; obj.y.'; obj.z.'];
+            p = [obj.px.'; obj.py.'; obj.pz.'];
 
-                [~,~,~,dHschw] = DB_Hamiltonian_Kerr(obj,R,p,0*obj.chi1);
-                obj.dHschwdx(i,:) = dHschw.dx;
-                obj.dHschwdp(i,:) = dHschw.dp;
+            L = cross(R,p,1);
+            obj.L = L.';
+            obj.Lnorm = vecnorm(L,2,1).';
 
-                if obj.geodesics==0
-                    obj.F(i,:) = DB_flux2(R,p,dHeff.dp,obj.q,obj.chi1);
-                end
+            [Heff,Horb,dHeff,dHorb,dHso] = DB_Hamiltonian_Kerr(obj,R,p,obj.chi1);
+            obj.Heff = Heff.';
+            obj.Horb = Horb.';
+
+            obj.dHdp = dHeff.dp.';
+            obj.dHdx = dHeff.dx.';
+            obj.dHorbdp = dHorb.dp.';
+            obj.dHorbdx = dHorb.dx.';
+            obj.dHsodp = dHso.dp.';
+            obj.dHsodx = dHso.dx.';
+
+            [~,~,~,dHschw] = DB_Hamiltonian_Kerr(obj,R,p,0*obj.chi1);
+            obj.dHschwdx = dHschw.dx.';
+            obj.dHschwdp = dHschw.dp.';
+
+            if obj.geodesics==0
+                obj.F = DB_flux2(R,p,dHeff.dp,obj.q,obj.chi1).';
             end
+
             if obj.verbose
                 toc(write_start)
             end

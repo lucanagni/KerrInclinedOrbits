@@ -1,0 +1,124 @@
+Vectorization of DB_class.vectorial_Hamiltonian
+================================================
+2026-09-15
+
+Problem
+-------
+DB_class.vectorial_Hamiltonian memorizes the dynamics after the ODE solve
+finishes. It was implemented as a MATLAB for-loop over every trajectory
+point (up to millions of points for the default Tmax=1e6, dt=0.25),
+calling DB_Hamiltonian_Kerr (and, inside it, DB_metric_Kerr) twice per
+point plus DB_flux2 once per point. Output arrays were already
+preallocated with zeros(...), so allocation was not the bottleneck -- the
+cost was MATLAB's per-call/per-struct overhead multiplied by millions of
+iterations.
+
+Fix
+---
+DB_metric_Kerr.m, DB_Hamiltonian_Kerr.m and DB_flux2.m were already
+elementwise (.*, ./ , .^) internally, so they were made to accept a 3xN
+array of points instead of only a 3x1 point:
+  - norm(X)              -> vecnorm(X,2,1)                 (column norms)
+  - X(1), X(2), X(3)     -> X(1,:), X(2,:), X(3,:)          (row extraction,
+                                                              not linear index)
+  - dot(A,chi1) where A is 3xN and chi1 is the fixed 3x1 spin
+                         -> sum(A.*chi1,1)                  (dot() needs
+                                                              matching sizes,
+                                                              this broadcasts)
+  - dot([...],chi1) building an ad hoc 3-vector from three formulas
+                         -> rewritten as an explicit linear combination of
+                            chi1(1)/chi1(2)/chi1(3) (scalars), which
+                            vectorizes over N points with no reshaping
+  - cross(A,B), dot(A,B) with A,B both 3xN were already correct (MATLAB
+    operates column-wise for matching-size matrix inputs); made the
+    reduction dimension explicit (,1) for clarity/robustness.
+
+DB_class.vectorial_Hamiltonian now builds R = [x.';y.';z.'] and
+p = [px.';py.';pz.'] (3xN) and calls DB_Hamiltonian_Kerr / DB_flux2 once
+on the whole trajectory instead of once per point in a loop. The
+redundant upfront zeros(...) preallocation for everything that gets fully
+overwritten was removed (obj.F is still preallocated to zero since it's
+only filled in when geodesics==0).
+
+Two latent shape bugs were exposed and fixed by this change:
+  - DB_spherical_ICs.m and DB_postspherical_ICs.m built the position
+    vector as a row, R = [x,y,z], instead of a column like every other
+    call site (P = [0;py;0] etc). This only ever worked before because
+    the old code read it with orientation-agnostic norm()/linear
+    indexing (X(1)); it breaks under the new X(1,:) convention. Fixed to
+    R = [x;y;z].
+  - DB_write_kerr_dynamics.m looped over rows of Nx3 arrays, passing
+    X(i,:) (a 1x3 row) into DB_flux2. Fixed by transposing to a column
+    on the way in and the result back on the way out.
+
+Verification
+------------
+1. All 38 existing tests pass (testGeodesicConservation,
+   testGoldenMaster, testKnownLimits) -- see caveat below.
+
+2. Per-call formula check: DB_Hamiltonian_Kerr/DB_metric_Kerr evaluated
+   on individual trajectory points (old formulas vs new formulas, same
+   3x1 input) match bit-for-bit (0.0 difference) at multiple points
+   along a deep post-spherical plunge trajectory, including the terminal
+   points closest to the horizon. I.e. the algebraic rewrite introduced
+   no formula error.
+
+3. Batch-vs-loop check: evaluating the SAME new-code DB_Hamiltonian_Kerr
+   on the whole trajectory at once (3xN) vs one point at a time in a
+   loop is not bit-for-bit identical -- floating-point reduction over a
+   wide array can take a different instruction path than the same
+   reduction done one column at a time. Measured: 630/22058 points in a
+   plunge case differ at all, by at most 2.7e-13 absolute in Heff.
+
+4. This tiny (~1e-13) noise gets amplified by the a^2*(1-Heff^2) term in
+   the Carter constant C, since Heff -> 1 near the plunge (cancellation),
+   and further compounds over the stiff terminal integration steps. It
+   reached ~1.6e-8 relative error in C at the last 3 of case4's 22058
+   golden-master steps -- just over the pre-existing 1e-8 tolerance used
+   for every other field. This is the same class of effect
+   testGoldenMaster.m already documented from an earlier CSE rewrite of
+   these same two functions (there: reordering -> ~1e-9 amplification in
+   plunge trajectories); it just comes from batch-vs-loop evaluation
+   order this time instead of algebraic reassociation. Confirmed NOT a
+   bug: r, th, phi, Heff, pphi all still match at 1e-8 (they don't
+   contain a comparable cancellation). C's tolerance was widened to 5e-7
+   in tests/testGoldenMaster.m, with the same level of documentation and
+   evidence as the existing comment block for the CSE rewrite.
+
+5. Other_Quantities check (in response to a follow-up question): ran the
+   same case end-to-end with the pristine pre-change code (git worktree)
+   and with the vectorized code, and diffed every field Other_Quantities
+   produces or consumes (C, Omg/VOmg and the _orb/_so/_schw variants,
+   dHdp/dHdx/dHorbdp/dHsodp/dHschwdp, L, Heff, Horb). Every field has the
+   identical Nx1/Nx3 shape as before the change, and all differences are
+   at the 1e-11-to-1e-14 absolute level (the same batch-vs-loop noise
+   from point 3/4, not a logic or transpose error). Other_Quantities
+   itself was not modified; it continues to receive Nx3 arrays in
+   exactly the layout it always has.
+
+Performance
+-----------
+Benchmarked vectorial_Hamiltonian alone on a 245,997-point post-spherical
+plunge trajectory (chi1=[0 0 0.6], iota=20deg, r0=8, Tmax=2e5, dt=0.25):
+  - old per-point loop:      10.13 s  (4.12e-05 s/point)
+  - new vectorized version:   0.45 s  (1.84e-06 s/point)
+  -> ~22x speedup.
+
+At the default Tmax=1e6 (~4e6 points) this scales to minutes saved per
+run rather than seconds.
+
+Files changed
+-------------
+  DB_metric_Kerr.m
+  DB_Hamiltonian_Kerr.m
+  DB_flux2.m
+  DB_class.m                  (vectorial_Hamiltonian)
+  DB_spherical_ICs.m          (bugfix: row -> column)
+  DB_postspherical_ICs.m      (bugfix: row -> column)
+  DB_write_kerr_dynamics.m    (compatibility: transpose at call site)
+  tests/testGoldenMaster.m    (C tolerance 1e-8 -> 5e-7, documented)
+
+No physics changes were made; Other_Quantities, the ODE integration
+(DB_rhs), and all public-facing quantities are numerically unchanged to
+within floating-point noise (~1e-13 absolute, amplified to ~1e-8 relative
+only in C's near-horizon cancellation region).

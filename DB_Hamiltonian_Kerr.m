@@ -8,21 +8,23 @@ function [Heff,Horb,dHeff,dHorb,dHso] = DB_Hamiltonian_Kerr(obj,X,p,chi1)
 
 [A,Bp,Bnp,Benp,Gs,dA,dBp,dBnp,dBenp,dGs] = DB_metric_Kerr(X,chi1);
 
-r = norm(X);
-L = cross(X,p);
+r = vecnorm(X,2,1);
+L = cross(X,p,1);
 
-x  = X(1);
-y  = X(2);
-z = X(3);
-px = p(1);
-py = p(2);
-pz = p(3);
+x  = X(1,:);
+y  = X(2,:);
+z = X(3,:);
+px = p(1,:);
+py = p(2,:);
+pz = p(3,:);
 
 r2 = r.^2;
 
-pdotp = dot(p,p);
-pdotX = dot(X,p);      % = r * dot(n,p)
-LchiX = dot(L,chi1);   % = r * dot(cross(n,p),chi1)
+pdotp = dot(p,p,1);
+pdotX = dot(X,p,1);      % = r * dot(n,p)
+LchiX = sum(L.*chi1,1);  % = r * dot(cross(n,p),chi1); chi1 is a fixed 3x1
+                         % broadcast against the 3xN array of points, so
+                         % dot() (which needs matching sizes) won't do.
 Lchi  = LchiX./r;      % = dot(cross(n,p),chi1)
 
 % S = r^2 * (Horb-argument), so that A.*S == r^2.*Horb.^2. This avoids
@@ -41,21 +43,21 @@ end
 
 Heff = Horb + Hspin;
 
-dAdx = dA.dx(1);
-dAdy = dA.dx(2);
-dAdz = dA.dx(3);
-dBpdx = dBp.dx(1);
-dBpdy = dBp.dx(2);
-dBpdz = dBp.dx(3);
-dBnpdx = dBnp.dx(1);
-dBnpdy = dBnp.dx(2);
-dBnpdz = dBnp.dx(3);
-dBenpdx = dBenp.dx(1);
-dBenpdy = dBenp.dx(2);
-dBenpdz = dBenp.dx(3);
-dGsdx = dGs.dx(1);
-dGsdy = dGs.dx(2);
-dGsdz = dGs.dx(3);
+dAdx = dA.dx(1,:);
+dAdy = dA.dx(2,:);
+dAdz = dA.dx(3,:);
+dBpdx = dBp.dx(1,:);
+dBpdy = dBp.dx(2,:);
+dBpdz = dBp.dx(3,:);
+dBnpdx = dBnp.dx(1,:);
+dBnpdy = dBnp.dx(2,:);
+dBnpdz = dBnp.dx(3,:);
+dBenpdx = dBenp.dx(1,:);
+dBenpdy = dBenp.dx(2,:);
+dBenpdz = dBenp.dx(3,:);
+dGsdx = dGs.dx(1,:);
+dGsdy = dGs.dx(2,:);
+dGsdz = dGs.dx(3,:);
 
 % dot(cross(e_i,p),chi1) for i=x,y,z -- reused both for the L.chi1
 % x/y/z-derivatives below and for dHso.dx (they don't depend on X).

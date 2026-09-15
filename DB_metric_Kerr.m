@@ -4,13 +4,13 @@ function [A,Bp,Bnp,Benp,Gs,dA,dBp,dBnp,dBenp,dGs] = DB_metric_Kerr(X,chi1)
 % Kerr Cartesian metric
 %==========================================================================
 
-r = norm(X);
+r = vecnorm(X,2,1);
 n = X./r;
 a = norm(chi1);
 
-x = X(1);
-y = X(2);
-z = X(3);
+x = X(1,:);
+y = X(2,:);
+z = X(3,:);
 
 % shorthands
 r2 = r.^2;
@@ -34,7 +34,9 @@ Aeq  = (1-2./rc).*(1+2./rc)./(1+2./r);
 dAeq = 2.*r2./rc4.*(1+2.*(r-2).*u3.*a2 + a4.*u4);
 
 % n.chi1 and its square, reused throughout A/B/Gs and their derivatives
-nchi  = dot(n,chi1);
+% (sum(n.*chi1,1) instead of dot(n,chi1): dot() requires matching sizes,
+% but chi1 is a fixed 3x1 broadcast against the 3xN array of points n)
+nchi  = sum(n.*chi1,1);
 nchi2 = nchi.^2;
 
 % common denominators reused across A, B and Gs (and their derivatives)
@@ -52,10 +54,13 @@ Gs = 2.*r./QD;
 
 %derivatives
 
-% dot(d n/dxi, chi1), reused in every derivative below
-dndx_chi = dot([r.^(-3).*(r2-x.^2),(-1).*r.^(-3).*x.*y,(-1).*r.^(-3).*x.*z],chi1);
-dndy_chi = dot([(-1).*r.^(-3).*x.*y,r.^(-3).*(r2-y.^2),(-1).*r.^(-3).*y.*z],chi1);
-dndz_chi = dot([(-1).*r.^(-3).*x.*z,(-1).*r.^(-3).*y.*z,r.^(-3).*(r2-z.^2)],chi1);
+% dot(d n/dxi, chi1), reused in every derivative below. Written as an
+% explicit linear combination of the (fixed, scalar) chi1 components
+% instead of building a length-3 vector and calling dot() on it, so this
+% vectorizes over N points without any reshaping.
+dndx_chi = chi1(1).*r.^(-3).*(r2-x.^2) + chi1(2).*(-1).*r.^(-3).*x.*y + chi1(3).*(-1).*r.^(-3).*x.*z;
+dndy_chi = chi1(1).*(-1).*r.^(-3).*x.*y + chi1(2).*r.^(-3).*(r2-y.^2) + chi1(3).*(-1).*r.^(-3).*y.*z;
+dndz_chi = chi1(1).*(-1).*r.^(-3).*x.*z + chi1(2).*(-1).*r.^(-3).*y.*z + chi1(3).*r.^(-3).*(r2-z.^2);
 
 QNinv2 = QN.^(-2);
 QDinv2 = QD.^(-2);
