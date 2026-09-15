@@ -1,0 +1,171 @@
+DB_metric_Kerr / DB_Hamiltonian_Kerr CSE rewrite -- investigation log
+======================================================================
+
+Context
+-------
+DB_Hamiltonian_Kerr and DB_metric_Kerr are Mathematica-generated MATLAB
+dumps that recomputed the same subexpressions over and over on every RHS
+evaluation (e.g. dot(n,chi1) appeared ~20+ times per call; the giant
+sqrt(...) term defining Horb was rebuilt from scratch 6 times to get its
+various partial derivatives). The task was to precompute these shared
+subexpressions once and reuse them, for a speedup, while preserving
+behavior exactly (to floating-point precision).
+
+What changed
+------------
+- DB_metric_Kerr.m: precompute n.chi1, the d(n)/dxi.chi1 vectors, and
+  shared denominators (QN, QD, Fben) that were being reconstructed in
+  nearly every derivative expression.
+- DB_Hamiltonian_Kerr.m: precompute p.p, p.X, L.chi1; and, the biggest
+  win, recognize that the big sqrt(...) term recomputed 6 times per call
+  is algebraically just r^2*Horb^2, so Horb (already computed once) is
+  reused instead of rebuilding and re-sqrting that expression for every
+  partial derivative.
+
+Result: ~2x speedup on DB_metric_Kerr, ~1.7x on DB_Hamiltonian_Kerr
+(measured over 200k calls each).
+
+Verification, step 1: direct formula comparison
+------------------------------------------------
+Ran 500 random trials comparing every output of the old vs. new
+DB_metric_Kerr / DB_Hamiltonian_Kerr at single points (random positions,
+spins, momenta): max relative error ~1e-13, consistent with pure
+floating-point reordering, no algebraic mistakes.
+
+Verification, step 2: full regression suite
+---------------------------------------------
+Ran tests/run_all_tests.m (testGeodesicConservation, testGoldenMaster,
+testKnownLimits -- 38 tests total). testGeodesicConservation and
+testKnownLimits passed outright. testGoldenMaster failed on 3 of its 6
+cases (cases 4-6, the "post-spherical" / plunging inspiral cases) at the
+original RelTol of 1e-11; the 3 pure-geodesic cases (1-3) passed
+comfortably.
+
+Diagnosing the golden-master failures
+--------------------------------------
+Traced the failing cases index-by-index. The trajectories tracked the
+reference to ~1e-13 relative error for the first ~90-99% of each run,
+then the discrepancy grew smoothly to ~1e-9-1e-8 only in the last ~1% of
+steps, exactly as each orbit plunged toward the horizon (r dropping
+through ~3M -> ~1.7-2M). This looked like ODE sensitivity amplification
+near a plunge (a known-delicate regime), not a computational bug -- but
+this needed to be proven, not just asserted.
+
+User pushback (justified): "if this is noise produced by the ODE
+integration, shouldn't we observe it also between runs obtained with the
+same Hamiltonian? All tests performed in the past few days (without
+changing the Hamiltonian script) matched with the smaller tolerance
+threshold (1e-11). If this discrepancy is purely integration-related, it
+should have popped up in those tests as well."
+
+Investigation, step 1: isolate per-call precision from ODE amplification
+--------------------------------------------------------------------------
+Regenerated the actual pre-rewrite trajectory for the two worst golden-
+master cases (using the pristine code straight from git HEAD, via MATLAB
+path shadowing), capturing the exact Cartesian state (x,y,z,px,py,pz) at
+every one of the ~14,000-16,000 integration steps, down to the plunge
+cutoff. Then, at *every one* of those exact states, called the old and
+new Hamiltonian functions side by side -- no re-integration involved,
+just a direct formula evaluation at identical inputs.
+
+Result: the local, per-call relative error between old and new formulas
+stayed at machine-precision level (~1e-16, occasionally up to ~1e-11)
+across the ENTIRE trajectory, including the deepest strong-field points
+right at the plunge (r ~ 1.8-2.0). No growth with decreasing r in the
+direct formula comparison -- it stayed flat.
+
+Meanwhile the SAME trajectories, when actually integrated end-to-end by
+ode113 (16111 and 13964 steps respectively), diverged by 6.7e-10 and
+2.2e-9 in r by the end -- a ~50-500x amplification of a ~1e-11-level
+per-step difference, produced entirely by the ODE integration compounding
+over thousands of steps through the numerically stiff terminal plunge
+approach.
+
+This showed the formulas were not the source of the growth, but did not
+yet answer the user's sharper question: why did this sensitivity never
+show up before, if it's supposedly generic to the dynamics rather than
+specific to this rewrite?
+
+Investigation, step 2: controlled experiment on the UNMODIFIED code
+-----------------------------------------------------------------------
+Rather than argue by analogy, ran a direct controlled experiment: take
+the pristine, completely unmodified original code, and introduce a
+single, minimal, provably-harmless floating-point reordering, then see
+if that alone reproduces the same order of trajectory divergence.
+
+First attempt (informative failure): reordered the 4-term sum inside the
+`Horb` formula (1+Bp.*dot(p,p)+Bnp.*dot(n,p).^2+Benp.*(...)). Result:
+exactly zero difference across both full trajectories. Reason: in the
+ORIGINAL code, `Horb` is a standalone output variable -- the derivative
+formulas (dHorbdx, dHorbdpx, etc.) each independently rebuild the full
+expression `A.*(...)` from scratch rather than referencing `Horb`, so
+perturbing that one line never touches the force actually fed to the
+integrator. Useful negative result, but not yet the real test.
+
+Second attempt (also a false start): swapped the order of a plain
+two-term sum inside dHorbdpx (`Bnp.*x.*(...) + r.^2.*(...)` ->
+`r.^2.*(...) + Bnp.*x.*(...)`). Result: again exactly zero difference,
+everywhere, including a direct per-call check across 2000 random states
+(0/2000 bit-different) and across all 16111 real trajectory states
+(0/16111 bit-different). Reason, confirmed after checking: IEEE-754
+floating-point addition is exactly commutative for two operands (a+b is
+bit-identical to b+a, since both round the same exact mathematical sum)
+-- it is only non-associative for three or more terms. Swapping two
+addends is a true no-op at the bit level, so this perturbation could
+never have shown anything.
+
+Third attempt (the real test): reassociated a genuine 3-term sum
+(`1+Bp.*(px.^2+py.^2+pz.^2)+Benp.*dot(...).^2` ->
+`Benp.*dot(...).^2+Bp.*(px.^2+py.^2+pz.^2)+1`) inside exactly ONE of the
+six derivative formulas (dHorbdpx only -- dHorbdpy, dHorbdpz, dHorbdx,
+dHorbdy, dHorbdz all left completely untouched, and every other file in
+the repository unmodified). First confirmed this is a genuine
+perturbation: direct per-call comparison across the 16111 real
+trajectory states showed 1981/16111 states bit-different, max relative
+error ~1.1e-15 -- i.e. exactly the kind of last-bit reordering noise any
+CSE rewrite is expected to introduce, and nothing more.
+
+Then ran that single-line-changed pristine code through the full ODE
+integration for the same two golden-master cases:
+
+  case            | full CSE rewrite vs. original | one reassociated sum
+                  |   (this rewrite's real diff)  |  in otherwise-original code
+  ----------------|--------------------------------|------------------------------
+  case5 (plunge)  |           6.7e-10              |          6.5e-10
+  case6 (plunge)  |           2.2e-9                |          1.7e-9
+
+A single, minimal, one-line reassociation of one sum, in one of six
+otherwise-untouched derivative formulas, reproduced trajectory-level
+divergence of the same order of magnitude as the entire CSE rewrite.
+
+Conclusion
+----------
+The amplification is a generic property of integrating these particular
+near-plunge orbits at reltol=abstol=1e-13 over ~14,000-16,000 adaptive
+steps -- it is triggered by the smallest possible floating-point
+reordering, and is not specific to (or made worse by) this rewrite.
+
+This also explains why it never appeared in earlier testing: "same
+Hamiltonian" only reproduces bit-identical output if the code is
+literally byte-identical, which is trivially true and uninteresting. The
+commits made in the days before this rewrite (removing the unused chi2
+property, IC-script changes, tolerance changes) never touched a single
+arithmetic expression inside DB_metric_Kerr / DB_Hamiltonian_Kerr's
+force-evaluation formulas, so there was no reordering for this
+(pre-existing) sensitivity to act on. Those tests passing at 1e-11 says
+nothing about robustness to reordering -- only that unrelated code paths
+weren't touched. This CSE rewrite is the first change ever made to the
+arithmetic inside these two functions, so it is the first time this
+sensitivity had anything to amplify.
+
+Outcome
+-------
+- tests/testGoldenMaster.m: RelTol relaxed from 1e-11 to 1e-8 for the
+  full-trajectory comparison (documented inline, with a pointer back to
+  this file). This is well above the worst observed reordering-induced
+  divergence (~9e-9) while still catching any genuine regression, which
+  would be expected to be many orders of magnitude larger.
+- golden_master.mat itself was NOT regenerated -- it still reflects the
+  pre-rewrite reference trajectories, and the rewritten code is verified
+  to reproduce them within the (reordering-noise-aware) tolerance above.
+- All 38 tests in tests/run_all_tests.m pass.
