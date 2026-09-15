@@ -61,15 +61,11 @@ classdef DB_class < handle
         px
         py
         pz
-        pxs
-        pys
-        pzs
 
         r
         th
         phi
         pr
-        prs
         pth
         pphi
         L
@@ -79,7 +75,6 @@ classdef DB_class < handle
         tLR
         tLSSO
 
-        H
         Heff
         Horb
         dHdp
@@ -109,8 +104,6 @@ classdef DB_class < handle
         Omg_orb_phi
         Omg_so_phi
         Omg_so_th
-
-        Omg1 %DEBUG VARIABLE
 
     end
 
