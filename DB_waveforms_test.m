@@ -32,7 +32,8 @@ flags.newf21incl = 0; % Uses new form of f21odd_incl (attempts to factor out sin
 flags.f21odd1p5PN = 0; % Include up to 1.5PN order in inclined f21odd
 flags.f21odd3PN = 0; % Include up to 3PN order in inclined f21odd
 flags.f21odd4p5PN = 0; % Include up to 4.5 PN oder in inclined f21odd
-flags.sgolay = 0; % Use sgloay filter to (try to) remove f21 singularity
+flags.NewAlphaTail = 0; % Use different tails for even and odd components (adds an alpha parameter in the real exponential)
+
 
 % read varargin and eventually update default values
     i = 1;
@@ -95,8 +96,8 @@ flags.sgolay = 0; % Use sgloay filter to (try to) remove f21 singularity
                     flags.f21odd1p5PN = 1;
                     flags.f21odd3PN = 1;
                     flags.f21odd4p5PN = 1;
-                case 'sgolay'
-                    flags.sgolay = 1;
+                case 'alpha'
+                    flags.NewAlphaTail = 1;
                 otherwise
                     error("'%s' is not a valid flag!", flag)
             end
@@ -134,7 +135,7 @@ end
 DB = s.dyn;
 mystruct.dyn = s.dyn;
 
-[w_anal,Ulm, Vlm, w_anal_sgolay] = generic_wave_cart(DB,l,m,flags);
+[w_anal,Ulm, Vlm] = generic_wave_cart(DB,l,m,flags);
 
 if flags.geod
     tLR = DB.t(end);
@@ -219,9 +220,6 @@ hold on
 plot(T,real(w_num),'LineWidth',my_linewidth,'DisplayName','Numerical','Color','k')
 %plot(T,abs(w_num),'LineWidth',my_linewidth,'DisplayName',sprintf('$|%s|$',wf_label),'Color',[1 0 0 .2],'HandleVisibility','off')
 plot(tau,real(w_anal),'LineWidth',my_linewidth,'DisplayName',anlabel,'LineStyle','--','Color',MyColors('r1'))
-if flags.sgolay
-    plot(tau,real(w_anal_sgolay),'LineWidth',my_linewidth,'DisplayName',[anlabel,' - sgolay'],'LineStyle','--','Color',MyColors('g1'))
-end
 %plot(tau,abs(w_anal),'LineWidth',my_linewidth,'DisplayName',sprintf('$|%s^{\\rm %s}|$',wf_label,flags.analytical_label),'LineStyle','--','Color',[1 0 0 .2],'HandleVisibility','off')
 xline(tLR,'Color',[.7 .7 .7],'LineStyle','--','LineWidth',1.5*my_linewidth,'HandleVisibility','off')
 
@@ -300,7 +298,7 @@ end
 
 return
 
-function [full_wave,Ulm,Vlm,full_wave_sgolay] = generic_wave_cart(DB,l,m,flags)
+function [full_wave,Ulm,Vlm] = generic_wave_cart(DB,l,m,flags)
 
 fprintf('CARTESIAN FORMULA\n')
 
@@ -312,7 +310,22 @@ jhat = DB_jhat(DB,flags);
 
 Omega = DB.Omg;
 if m~=0
-    Tail = DB_Tail(l,m.*Omega,m.*Omega,r0);
+    if flags.NewAlphaTail
+        if m==1
+            Tail0 = DB_Tail(l,m.*Omega,m.*Omega,r0,2);
+            Tail1 = DB_Tail(l,m.*Omega,m.*Omega,r0,1);
+        elseif m==2
+            Tail0 = DB_Tail(l,m.*Omega,m.*Omega,r0,1);
+            Tail1 = DB_Tail(l,m.*Omega,m.*Omega,r0,1/2);
+        else
+            disp('m value invalid. No Tail computed. Setting Tail = 1')
+            Tail1 = 1;
+            Tail0 = 1;
+        end
+    else
+        Tail0 = DB_Tail(l,m.*Omega,m.*Omega,r0);
+        Tail1 = Tail0;
+    end
 else
     Tail = 1;
 end
@@ -437,26 +450,9 @@ else
             [~,Vlm_p] = DB_MultipolesPolar(DB,l,m,flags);
             Vlm = Vlm_p.*jhat;
         end
-        %{
-        if flags.newf21incl
-            Omega = DB.Omg;
-            r = DB.r;
-            iota = (pi/2-min(DB.th));
-            phi = atan2(DB.y.*cos(iota),DB.x);
-            x = (r.*Omega).^2;
-            Vlm = (sqrt(-1)*(8/3)).*exp(1).^((sqrt(-1)*(-1)).*phi).*((1/5).*pi).^(1/2).*x.^(3/2);
-            %Vlm = Vlm.*0 + 1;
-        end
-        %}
-        out = 1/sqrt(2).*(Ulm.*(rho21e).^(myell).*exp(1i.*delta21e) - 1i*Vlm.*(rho21o).^(myell).*exp(1i.*delta21o)).*(Tail); %for l+m=odd modes%
-        out_sgolay = 1/sqrt(2).*(Ulm.*(rho21e).^(myell).*exp(1i.*delta21e) - 1i*Vlm.*(rho_hybr.('l2m1o_sgolay')).^(myell).*exp(1i.*delta21o)).*(Tail); %for l+m=odd modes%
-        %figure
-        %plot(DB.t,angle(Vlm))
-        %pause
+        out = 1/sqrt(2).*(Ulm.*(rho21e).^(myell).*exp(1i.*delta21e).*Tail0 - 1i*Vlm.*(rho21o).^(myell).*exp(1i.*delta21o).*Tail1); %for l+m=odd modes%
     else
-       out = 1/sqrt(2).*(Ulm.*(rho22e).^(myell).*exp(1i.*delta22e) - 1i.*Vlm.*(rho22o).^(myell).*exp(1i.*delta22o)).*(Tail); %for l+m=even modes%
-       out_sgolay = 0;
-        %out = 1/sqrt(2).*(Ulm.*(rho_incl.('l2m2e')).^(l).*exp(1i.*deltalm)- 1i.*Vlm.*(rho_incl.('l2m2o')).^(l).*exp(1i.*delta_incl.('l2m2o'))).*Tail;
+       out = 1/sqrt(2).*(Ulm.*(rho22e).^(myell).*exp(1i.*delta22e).*Tail0 - 1i.*Vlm.*(rho22o).^(myell).*exp(1i.*delta22o).*Tail1); %for l+m=even modes%
     end
 
 %{
@@ -481,8 +477,6 @@ end
 
 full_wave = out;
 
-out_sgolay = 0;
-full_wave_sgolay = out_sgolay;
 
 return
 

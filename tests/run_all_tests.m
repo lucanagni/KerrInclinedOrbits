@@ -8,6 +8,9 @@
 %   this can also be dropped into a CI step later if you ever want one.
 
 here = fileparts(mfilename('fullpath'));
+repoRoot = fileparts(here);
+addpath(repoRoot);
+
 results = runtests(here);
 
 disp(table(results))
