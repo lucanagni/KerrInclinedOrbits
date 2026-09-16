@@ -1,1 +1,5 @@
+# Golden standard (control)
 tests/golden_master.mat
+
+# Numerical data from Hughes
+Hughes_flux_comparisons/DataHughes/
