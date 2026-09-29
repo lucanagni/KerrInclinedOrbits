@@ -352,12 +352,7 @@ classdef DB_class < handle
             end
             write_start = tic;
 
-            % Evaluate the whole trajectory at once (3xN) instead of
-            % looping point-by-point: DB_metric_Kerr/DB_Hamiltonian_Kerr/
-            % DB_flux2 are elementwise in their inputs, so a single
-            % vectorized call replaces what used to be up to millions of
-            % individual calls (each carrying its own function-call
-            % overhead) -- this is what used to make memorization so slow.
+            % Evaluate the whole trajectory at once (3xN) instead of looping point-by-point
             R = [obj.x.'; obj.y.'; obj.z.'];
             p = [obj.px.'; obj.py.'; obj.pz.'];
 

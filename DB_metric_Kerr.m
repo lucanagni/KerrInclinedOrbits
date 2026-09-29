@@ -4,6 +4,9 @@ function [A,Bp,Bnp,Benp,Gs,dA,dBp,dBnp,dBenp,dGs] = DB_metric_Kerr(X,chi1)
 % Kerr Cartesian metric
 %==========================================================================
 
+% Computes Metric potentials and their derivatives
+% Optimized and sped up using Claude
+
 r = vecnorm(X,2,1);
 n = X./r;
 a = norm(chi1);
@@ -29,7 +32,7 @@ drc = r./rc.*(1-a2.*u3);
 D = r2-2.*r+a2;
 dD = 2.*r -2;
 
-% A function
+% A potential
 Aeq  = (1-2./rc).*(1+2./rc)./(1+2./r);
 dAeq = 2.*r2./rc4.*(1+2.*(r-2).*u3.*a2 + a4.*u4);
 
@@ -49,7 +52,7 @@ Bp   = r2./QN;
 Bnp  = (D-r2)./QN;
 Benp = -r2.*Fben./(QN.*QD);
 
-% Gs function
+% Gs potential
 Gs = 2.*r./QD;
 
 %derivatives
